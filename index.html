@@ -58,6 +58,19 @@
   }
   .infobox .infobox-row .ib-name { flex:1 1 auto; color:#1a1a1a; }
   .infobox .infobox-row .ib-time { flex:0 0 auto; color:#555; font-weight:600; white-space:nowrap; font-size:11px; }
+
+  .panel-head {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .panel-toggle {
+    flex:0 0 auto; border:1px solid #ccc; background:#f5f5f5; color:#333;
+    width:20px; height:20px; border-radius:4px; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
+  }
+  .panel-toggle:hover { background:#e9e9e9; }
+  .panel-body { margin-top:2px; }
+  .legend.collapsed .panel-body, .infobox.collapsed .panel-body { display:none; }
+  .legend.collapsed, .infobox.collapsed { min-width:0; padding:6px 8px; }
 </style>
 </head>
 <body>
@@ -280,14 +293,48 @@ bounds.extend([48.6553472, -113.7870306]);
 poi.forEach(p => bounds.extend([p.lat, p.lon]));
 map.fitBounds(bounds, { padding: [40,40] });
 
+// Wraps a panel's inner HTML with a header (title + show/hide button) so it can
+// be collapsed on request — handy on a phone screen where these panels get cramped.
+// A JS-driven button, not a CSS breakpoint, so it works the same on every device
+// and the user stays in control either way.
+function makeCollapsible(div, title, bodyHtml, startCollapsed) {
+  const btn = document.createElement('button');
+  btn.className = 'panel-toggle';
+  btn.type = 'button';
+  btn.setAttribute('aria-label', 'Toggle panel');
+  btn.textContent = startCollapsed ? '+' : '−';
+
+  const head = document.createElement('div');
+  head.className = 'panel-head';
+  head.innerHTML = `<span style="font-weight:700;">${title}</span>`;
+  head.appendChild(btn);
+
+  const body = document.createElement('div');
+  body.className = 'panel-body';
+  body.innerHTML = bodyHtml;
+
+  div.appendChild(head);
+  div.appendChild(body);
+  if (startCollapsed) div.classList.add('collapsed');
+
+  btn.addEventListener('click', () => {
+    const collapsed = div.classList.toggle('collapsed');
+    btn.textContent = collapsed ? '+' : '−';
+  });
+
+  L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
+}
+
+const NARROW_SCREEN = window.innerWidth < 700;
+
 // Legend
 const legend = L.control({ position: 'bottomright' });
 legend.onAdd = function () {
   const div = L.DomUtil.create('div', 'legend');
   const tickTimes = [arrivalMin, (arrivalMin + arrivalMax) / 2, arrivalMax]
     .map(min => { const [h, m] = toHM(min); return fmtTime(h, m); });
-  div.innerHTML = `
-    <div style="font-weight:700; margin-bottom:2px;">Stops 1–6 — color = arrival time</div>
+  const bodyHtml = `
     <div class="grad-bar"></div>
     <div class="grad-ticks"><span>${tickTimes[0]}</span><span>${tickTimes[1]}</span><span>${tickTimes[2]}</span></div>
     <div style="margin-top:6px; padding-top:5px; border-top:1px solid #eee; font-weight:700;">Driving — color = traffic</div>
@@ -302,6 +349,7 @@ legend.onAdd = function () {
     </div>
     <div style="margin-top:5px; padding-top:4px; border-top:1px solid #eee; color:#777;">Click any line or dot for details</div>
   `;
+  makeCollapsible(div, 'Legend', bodyHtml, NARROW_SCREEN);
   return div;
 };
 legend.addTo(map);
@@ -317,7 +365,7 @@ infobox.onAdd = function () {
       <span class="ib-time">${timeRangeLabel(s)}</span>
     </div>`;
   }).join('');
-  div.innerHTML = `<div class="infobox-title">Start – end time at each stop</div>${rows}`;
+  makeCollapsible(div, 'Start – end time at each stop', rows, NARROW_SCREEN);
   return div;
 };
 infobox.addTo(map);

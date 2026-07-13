@@ -326,7 +326,7 @@ function makeCollapsible(div, title, bodyHtml, startCollapsed) {
   L.DomEvent.disableScrollPropagation(div);
 }
 
-const NARROW_SCREEN = window.innerWidth < 700;
+const NARROW_SCREEN = true; // start collapsed by default (was: window.innerWidth < 700) — testing Notion embed visibility
 
 // Legend
 const legend = L.control({ position: 'bottomright' });
